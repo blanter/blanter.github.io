@@ -352,6 +352,20 @@
                 </span>
             </div>
         </div>
+
+        <!-- AI API KEY Setup Button -->
+        <div class="absolute bottom-12 md:bottom-20 right-6 md:right-10 z-20 flex flex-col items-end pointer-events-auto">
+            <button onclick="showAISettingsUI()"
+                class="px-5 py-2 bg-cyan-600/20 hover:bg-cyan-500/80 text-cyan-400 hover:text-black font-black tracking-widest text-[10px] md:text-xs rounded-none border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all flex items-center gap-2 group">
+                <svg class="w-4 h-4 text-cyan-400 group-hover:text-black" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                    </path>
+                </svg>
+                ACTIVATED AI API KEY
+            </button>
+        </div>
     </div>
     <!-- HUD (Heads Up Display) -->
     <div id="hud"
@@ -578,6 +592,61 @@
                 class="px-10 py-3 border border-cyan-500/50 bg-cyan-900/40 hover:bg-cyan-500 hover:text-black text-cyan-400 font-black rounded-none transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.4)] uppercase tracking-[0.3em] text-sm">
                 TERIMA MISI
             </button>
+        </div>
+    </div>
+
+    <!-- AI Settings Modal -->
+    <div id="aiSettingsUI"
+        class="fixed inset-0 bg-black/85 backdrop-blur-md hidden flex items-center justify-center z-[200] p-6">
+        <div
+            class="bg-gray-900 w-full max-w-lg p-8 rounded-none border border-cyan-500/50 shadow-[0_0_50px_rgba(6,182,212,0.2)] flex flex-col items-center">
+            <h2 class="text-cyan-400 font-black text-2xl tracking-[0.2em] uppercase mb-1 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
+                AI API CONFIGURATION</h2>
+            <p class="text-gray-500 text-[10px] tracking-widest uppercase mb-6 font-bold">Pilih Provider dan Masukkan Key
+            </p>
+
+            <div class="w-full flex flex-col gap-5">
+                <!-- Provider Select -->
+                <div class="flex flex-col gap-2">
+                    <label class="text-cyan-500/70 text-[10px] font-black tracking-widest uppercase">Provider</label>
+                    <select id="aiProviderSelect"
+                        class="bg-gray-800 border border-gray-700 text-white p-3 font-bold tracking-widest text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-all">
+                        <option value="openai">OpenAI (GPT-4o Mini)</option>
+                        <option value="gemini">Google Gemini (Gemini 1.5 Flash)</option>
+                    </select>
+                </div>
+
+                <!-- API Key Input -->
+                <div class="flex flex-col gap-2">
+                    <label class="text-cyan-500/70 text-[10px] font-black tracking-widest uppercase">API KEY</label>
+                    <div class="relative">
+                        <input id="aiApiKeyInput" type="password" placeholder="sk-..."
+                            class="w-full bg-gray-800 border border-gray-700 text-white p-3 font-bold tracking-widest text-xs focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-all pr-12">
+                        <button onclick="toggleKeyVisibility()"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400">
+                            <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="text-[9px] text-gray-600 italic mt-1 font-medium">Key Anda disimpan secara lokal di browser (LocalStorage) dan tidak akan dikirim ke server kami.</p>
+                </div>
+
+                <div class="flex gap-3 mt-4">
+                    <button onclick="saveAISettings()"
+                        class="flex-1 px-6 py-3 bg-cyan-600/40 hover:bg-cyan-500 text-cyan-400 hover:text-black font-black tracking-widest text-xs border border-cyan-500/50 transition-all shadow-lg">
+                        SAVE CONFIG
+                    </button>
+                    <button onclick="closeAISettingsUI()"
+                        class="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-black tracking-widest text-xs border border-gray-700 transition-all">
+                        CANCEL
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -3004,35 +3073,124 @@
             }
         }
 
-        // --- SISTEM INTEGRASI OPENAI (LORE AI) ---
-        const ZAI_CONFIG = {
-            apiKey: "", // ISI API KEY ANDA DI SINI
-            model: "gpt-4o-mini"
+        // --- SISTEM INTEGRASI AI (LORE AI) ---
+        let ZAI_CONFIG = {
+            provider: localStorage.getItem('ZAI_PROVIDER') || 'openai',
+            apiKey: localStorage.getItem('ZAI_API_KEY') || '',
+            model: localStorage.getItem('ZAI_PROVIDER') === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
+        };
+
+        window.showAISettingsUI = function () {
+            document.getElementById('aiSettingsUI').classList.remove('hidden');
+            document.getElementById('aiProviderSelect').value = ZAI_CONFIG.provider;
+            document.getElementById('aiApiKeyInput').value = ZAI_CONFIG.apiKey;
+        };
+
+        window.closeAISettingsUI = function () {
+            document.getElementById('aiSettingsUI').classList.add('hidden');
+        };
+
+        function showNotify(msg, type = 'success') {
+            const indicator = document.getElementById('saveIndicator');
+            const text = document.getElementById('saveText');
+            const spinner = document.getElementById('saveSpinner');
+            const check = document.getElementById('saveCheck');
+
+            if (!indicator || !text) return;
+
+            text.textContent = msg;
+            indicator.classList.remove('hidden'); // Ensure HUD section is accessible or handle visibility
+            // Since hud is hidden initially, we temporarily show it or use its indicator
+            const wasHidden = document.getElementById('hud').classList.contains('hidden');
+            if (wasHidden) document.getElementById('hud').classList.remove('hidden');
+
+            text.classList.remove('text-blue-100', 'text-green-400', 'text-red-400');
+            text.classList.add(type === 'success' ? 'text-green-400' : (type === 'error' ? 'text-red-400' : 'text-blue-100'));
+
+            spinner.classList.add('hidden');
+            check.classList.remove('hidden');
+
+            indicator.classList.remove('translate-x-64', 'opacity-0');
+
+            setTimeout(() => {
+                indicator.classList.add('translate-x-64', 'opacity-0');
+                setTimeout(() => {
+                    spinner.classList.remove('hidden');
+                    check.classList.add('hidden');
+                    if (wasHidden) document.getElementById('hud').classList.add('hidden');
+                }, 500);
+            }, 2500);
+        }
+
+        window.saveAISettings = function () {
+            const provider = document.getElementById('aiProviderSelect').value;
+            const key = document.getElementById('aiApiKeyInput').value.trim();
+
+            ZAI_CONFIG.provider = provider;
+            ZAI_CONFIG.apiKey = key;
+            ZAI_CONFIG.model = provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini';
+
+            localStorage.setItem('ZAI_PROVIDER', provider);
+            localStorage.setItem('ZAI_API_KEY', key);
+
+            showNotify("AI Config Saved Successfully", "success");
+            closeAISettingsUI();
+        };
+
+        window.toggleKeyVisibility = function () {
+            const input = document.getElementById('aiApiKeyInput');
+            input.type = input.type === 'password' ? 'text' : 'password';
         };
 
         async function callZAI(prompt, systemRole = "Anda adalah narator game survival robot yang mencekam.") {
-            if (!ZAI_CONFIG.apiKey) return "HQ: Api Key missing. [Note terdeteksi, aktifkan kunci AI di pengaturan untuk membaca detail kronologi ini]";
-            try {
-                const res = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${ZAI_CONFIG.apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: ZAI_CONFIG.model,
-                        messages: [
-                            { role: "system", content: systemRole },
-                            { role: "user", content: prompt }
-                        ],
-                        max_tokens: 150
-                    })
-                });
-                const data = await res.json();
-                if (data.choices) return data.choices[0].message.content;
-                return "Error: " + (data.error ? data.error.message : "Sinyal Lemah");
-            } catch (e) {
-                return "Sinyal terputus... data tidak dapat dipulihkan secara penuh.";
+            if (!ZAI_CONFIG.apiKey) return "HQ: Api Key missing. [Note terdeteksi, aktifkan kunci AI di pengaturan di main menu untuk membaca detail kronologi ini]";
+
+            if (ZAI_CONFIG.provider === 'openai') {
+                try {
+                    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${ZAI_CONFIG.apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: ZAI_CONFIG.model,
+                            messages: [
+                                { role: "system", content: systemRole },
+                                { role: "user", content: prompt }
+                            ],
+                            max_tokens: 150
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.choices) return data.choices[0].message.content;
+                    return "Error OpenAI: " + (data.error ? data.error.message : "Sinyal Lemah");
+                } catch (e) {
+                    return "Sinyal OpenAI terputus...";
+                }
+            } else if (ZAI_CONFIG.provider === 'gemini') {
+                try {
+                    // Using Gemini 1.5 Flash v1beta
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${ZAI_CONFIG.model}:generateContent?key=${ZAI_CONFIG.apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: `${systemRole}\n\n${prompt}` }]
+                            }],
+                            generationConfig: {
+                                maxOutputTokens: 150,
+                            }
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.candidates && data.candidates[0].content) {
+                        return data.candidates[0].content.parts[0].text;
+                    }
+                    return "Error Gemini: " + (data.error ? data.error.message : "Sinyal Lemah");
+                } catch (e) {
+                    return "Sinyal Gemini terputus...";
+                }
             }
         }
 
