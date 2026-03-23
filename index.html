@@ -3651,7 +3651,7 @@
                     ammo: player.ammo,
                     grenades: player.grenades,
                     inventory: player.inventory,
-                    survivorCount: survivors.length
+                    survivorCount: survivors.filter(s => !s.isBroken).length
                 };
 
                 let savedGames = JSON.parse(localStorage.getItem('terminatorSurvivalSaves') || '[]');
@@ -3748,6 +3748,7 @@
                 const sCount = save.survivorCount || 0;
                 for (let i = 0; i < sCount; i++) {
                     const s = new Survivor(player.x + (Math.random() - 0.5) * 100, player.y + (Math.random() - 0.5) * 100);
+                    // Match weapon with player if allowed for survivors
                     const initialWeapon = (player.weapon.name === weapons.smg.name || player.weapon.name === weapons.laser.name) ? player.weapon : weapons.smg;
                     s.weapon = initialWeapon; 
                     survivors.push(s);
