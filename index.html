@@ -4778,6 +4778,7 @@
                 this.accel = 140;
                 this.friction = 0.985;
                 this.fuel = 300;
+                this.maxFuel = 300;
                 this.hp = 2000;
                 this.maxHp = 2000;
                 this.active = true;
@@ -4851,7 +4852,7 @@
                 // Fuel Bar (Small)
                 ctx.fillStyle = '#000'; ctx.fillRect(-50, -125, 100, 4);
                 ctx.fillStyle = '#facc15';
-                ctx.fillRect(-50, -125, (this.fuel / 100) * 100, 4);
+                ctx.fillRect(-50, -125, (this.fuel / this.maxFuel) * 100, 4);
 
                 ctx.restore();
 
