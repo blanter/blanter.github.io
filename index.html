@@ -2575,6 +2575,9 @@
                     if (this.summonTimer > 8000) {
                         this.minions = this.minions.filter(m => robots.includes(m));
                         if (this.minions.length < 5) {
+                            let minionMultiplier = 1 + (wave * 0.15);
+                            if (wave >= 10) minionMultiplier += (wave - 10) * 0.1;
+                            if (wave >= 15) minionMultiplier += (wave - 15) * 0.2;
                             const minion = new Terminator(this.x + (Math.random() - 0.5) * 100, this.y + (Math.random() - 0.5) * 100, minionMultiplier);
                             minion.type = 'STALKER';
                             robots.push(minion);
@@ -5273,6 +5276,9 @@
                 robotBases.forEach(b => {
                     if (b.active && robots.length < robotsToSpawn + 10) {
                         if (Date.now() - b.lastSpawn > 15000) {
+                            let spawnMultiplier = 1 + (wave * 0.15);
+                            if (wave >= 10) spawnMultiplier += (wave - 10) * 0.1;
+                            if (wave >= 15) spawnMultiplier += (wave - 15) * 0.2;
                             const r = new Terminator(b.x + 200, b.y + 350, spawnMultiplier);
                             robots.push(r);
                             b.lastSpawn = Date.now();
