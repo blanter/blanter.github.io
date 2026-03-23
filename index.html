@@ -354,7 +354,8 @@
         </div>
 
         <!-- AI API KEY Setup Button -->
-        <div class="absolute bottom-12 md:bottom-20 right-6 md:right-10 z-20 flex flex-col items-end pointer-events-auto">
+        <div
+            class="absolute bottom-12 md:bottom-20 right-6 md:right-10 z-20 flex flex-col items-end pointer-events-auto">
             <button onclick="showAISettingsUI()"
                 class="px-5 py-2 bg-cyan-600/20 hover:bg-cyan-500/80 text-cyan-400 hover:text-black font-black tracking-widest text-[10px] md:text-xs rounded-none border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all flex items-center gap-2 group">
                 <svg class="w-4 h-4 text-cyan-400 group-hover:text-black" fill="none" stroke="currentColor"
@@ -600,9 +601,11 @@
         class="fixed inset-0 bg-black/85 backdrop-blur-md hidden flex items-center justify-center z-[200] p-6">
         <div
             class="bg-gray-900 w-full max-w-lg p-8 rounded-none border border-cyan-500/50 shadow-[0_0_50px_rgba(6,182,212,0.2)] flex flex-col items-center">
-            <h2 class="text-cyan-400 font-black text-2xl tracking-[0.2em] uppercase mb-1 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
+            <h2
+                class="text-cyan-400 font-black text-2xl tracking-[0.2em] uppercase mb-1 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
                 AI API CONFIGURATION</h2>
-            <p class="text-gray-500 text-[10px] tracking-widest uppercase mb-6 font-bold">Pilih Provider dan Masukkan Key
+            <p class="text-gray-500 text-[10px] tracking-widest uppercase mb-6 font-bold">Pilih Provider dan Masukkan
+                Key
             </p>
 
             <div class="w-full flex flex-col gap-5">
@@ -633,7 +636,8 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="text-[9px] text-gray-600 italic mt-1 font-medium">Key Anda disimpan secara lokal di browser (LocalStorage) dan tidak akan dikirim ke server kami.</p>
+                    <p class="text-[9px] text-gray-600 italic mt-1 font-medium">Key Anda disimpan secara lokal di
+                        browser (LocalStorage) dan tidak akan dikirim ke server kami.</p>
                 </div>
 
                 <div class="flex gap-3 mt-4">
@@ -1966,9 +1970,15 @@
                 if (dt === 0 || this.isBroken) return;
                 this.animTimer += dt;
 
-                // Menyesuaikan senjata dengan player secara otomatis
-                if (this.weapon.name !== player.weapon.name) {
-                    this.weapon = player.weapon;
+                // Menyesuaikan senjata dengan player secara otomatis (Hanya SMG atau Laser)
+                const isAllowedWeapon = player.weapon.name === weapons.smg.name || player.weapon.name === weapons.laser.name;
+                if (isAllowedWeapon) {
+                    if (this.weapon.name !== player.weapon.name) {
+                        this.weapon = player.weapon;
+                    }
+                } else if (this.weapon.name !== weapons.smg.name) {
+                    // Default to SMG if player is using a restricted weapon
+                    this.weapon = weapons.smg;
                 }
 
                 let closest = null;
@@ -2565,11 +2575,10 @@
                     if (this.summonTimer > 8000) {
                         this.minions = this.minions.filter(m => robots.includes(m));
                         if (this.minions.length < 5) {
-                            const minion = new Terminator(this.x + (Math.random() - 0.5) * 100, this.y + (Math.random() - 0.5) * 100, 1 + (wave * 0.1));
+                            const minion = new Terminator(this.x + (Math.random() - 0.5) * 100, this.y + (Math.random() - 0.5) * 100, minionMultiplier);
                             minion.type = 'STALKER';
                             robots.push(minion);
                             this.minions.push(minion);
-                            robotsAlive++;
                         }
                         if (this.minions.length >= 5) this.summonTimer = 0;
                     }
@@ -2668,7 +2677,7 @@
                         z.hp -= 150 * (1 - dist / this.explosionRadius);
                         z.slowFactor = 0.2; z.slowTimer = 2000;
                         if (z.hp <= 0) {
-                            robots.splice(i, 1); robotsAlive--;
+                            robots.splice(i, 1);
                             player.money += 15;
                         }
                     }
@@ -3197,7 +3206,6 @@
         let wave = 0;
         let spawnTimer = 0;
         let robotsToSpawn = 0;
-        let robotsAlive = 0;
         let colossusesToSpawn = 0;
         let systemErrorTimer = 0; // Durasi error sistem dari serangan Colossus (ms)
 
@@ -3737,13 +3745,14 @@
                 const sCount = save.survivorCount || 0;
                 for (let i = 0; i < sCount; i++) {
                     const s = new Survivor(player.x + (Math.random() - 0.5) * 100, player.y + (Math.random() - 0.5) * 100);
-                    s.weapon = player.weapon; // Give them player's current weapon OR default
+                    const initialWeapon = (player.weapon.name === weapons.smg.name || player.weapon.name === weapons.laser.name) ? player.weapon : weapons.smg;
+                    s.weapon = initialWeapon; 
                     survivors.push(s);
                 }
 
                 robotsToSpawn = 3 + (wave * 2);
-                bossesToSpawn = Math.floor(wave / 10);
-                colossusesToSpawn = (wave >= 10) ? 2 : 0;
+                bossesToSpawn = (wave >= 15) ? Math.max(2, Math.floor(wave / 10)) : Math.floor(wave / 10);
+                colossusesToSpawn = (wave >= 10) ? Math.min(5, 2 + Math.max(0, wave - 14)) : 0;
                 closeSaveModal();
                 startGame();
             }
@@ -4024,7 +4033,8 @@
             if (player.inventory.scrap >= 15) {
                 player.inventory.scrap -= 15;
                 const newAlly = new Survivor(player.x - 40, player.y - 40);
-                newAlly.weapon = player.weapon; // Sesuaikan senjata saat pertama dibuat
+                const initialWeapon = (player.weapon.name === weapons.smg.name || player.weapon.name === weapons.laser.name) ? player.weapon : weapons.smg;
+                newAlly.weapon = initialWeapon; 
                 survivors.push(newAlly);
                 SoundEngine.playPurchase();
                 updateHUD();
@@ -4352,7 +4362,10 @@
             constructor(x, y) {
                 this.x = x; this.y = y;
                 this.radius = 35;
-                this.hp = 1500 * (1 + wave * 0.12);
+                let colMultiplier = 1 + wave * 0.12;
+                if (wave >= 10) colMultiplier += (wave - 10) * 0.1; // Scaling harder after wave 10
+                if (wave >= 15) colMultiplier += (wave - 15) * 0.2; // Scaling even harder after wave 15
+                this.hp = 1500 * colMultiplier;
                 this.maxHp = this.hp;
                 this.speed = 60;
                 this.damage = 25;
@@ -4570,16 +4583,22 @@
 
                 validPos = true;
             }
-            const bot = new Terminator(x, y, 1 + (wave * 0.15));
+            let difficultyMult = 1 + (wave * 0.15);
+            if (wave >= 10) difficultyMult += (wave - 10) * 0.1;
+            if (wave >= 15) difficultyMult += (wave - 15) * 0.2;
+
+            const bot = new Terminator(x, y, difficultyMult);
             if (isBoss) {
                 bot.type = 'BOSS_TANK';
                 bot.radius = 45;
                 bot.color = '#450a0a';
                 bot.stroke = '#7f1d1d';
                 bot.speed = 50;
-                bot.hp = 2500 * (1 + (wave * 0.15));
+                let bossHP = 2500 * difficultyMult;
+                if (wave >= 15) bossHP *= 1.5; // Boss becomes significantly harder after wave 15
+                bot.hp = bossHP;
                 bot.maxHp = bot.hp;
-                bot.damage = 40 * (1 + (wave * 0.15));
+                bot.damage = 40 * difficultyMult * (wave >= 15 ? 1.3 : 1);
                 bot.detectionRadius = 1200;
             }
             robots.push(bot);
@@ -4752,10 +4771,10 @@
                 this.w = 90; this.h = 180;
                 this.angle = 0;
                 this.speed = 0;
-                this.maxSpeed = 240;
+                this.maxSpeed = 260;
                 this.accel = 140;
                 this.friction = 0.985;
-                this.fuel = 150;
+                this.fuel = 300;
                 this.hp = 2000;
                 this.maxHp = 2000;
                 this.active = true;
@@ -4951,7 +4970,6 @@
                                 if (z.hp <= 0) {
                                     for (let k = 0; k < 12; k++) getParticleFromPool(z.x, z.y, '#0ea5e9');
                                     robots.splice(i, 1);
-                                    robotsAlive--;
                                     player.money += 15;
                                 }
                             }
@@ -5253,11 +5271,10 @@
 
                 // Spawn from bases
                 robotBases.forEach(b => {
-                    if (b.active && robotsAlive < robotsToSpawn + 10) {
+                    if (b.active && robots.length < robotsToSpawn + 10) {
                         if (Date.now() - b.lastSpawn > 15000) {
-                            const r = new Terminator(b.x + 200, b.y + 350, 1 + (wave * 0.1));
+                            const r = new Terminator(b.x + 200, b.y + 350, spawnMultiplier);
                             robots.push(r);
-                            robotsAlive++;
                             b.lastSpawn = Date.now();
                             hiveSignals.push(new HiveSignal(b.x + 200, b.y + 350));
                         }
@@ -5441,25 +5458,23 @@
                     if (bossesToSpawn > 0) {
                         spawnTerminator(true);
                         bossesToSpawn--;
-                        robotsAlive++;
                     } else if (colossusesToSpawn > 0) {
                         spawnColossus();
                         colossusesToSpawn--;
-                        // Colossi tracked separately, no robotsAlive++
+                        // Colossi tracked separately
                     } else {
                         spawnTerminator();
                         robotsToSpawn--;
-                        robotsAlive++;
                     }
                     spawnTimer = 0;
                 }
-            } else if (dt > 0 && robotsAlive === 0 && robots.length === 0 && colossi.length === 0 && gameState === 'PLAYING') {
+            } else if (dt > 0 && robots.length === 0 && colossi.length === 0 && gameState === 'PLAYING') {
                 // Graduation to next wave
                 wave++;
                 robotsToSpawn = 3 + (wave * 2);
-                bossesToSpawn = Math.floor(wave / 10);
-                // Spawn 2 Colossus per wave dari wave 10
-                colossusesToSpawn = (wave >= 10) ? 2 : 0;
+                bossesToSpawn = (wave >= 15) ? Math.max(2, Math.floor(wave / 10)) : Math.floor(wave / 10);
+                // Colossus count scaling: starts at 2 (wave 10), becomes 3 (wave 15), 4 (wave 16), 5 (wave 17+)
+                colossusesToSpawn = (wave >= 10) ? Math.min(5, 2 + Math.max(0, wave - 14)) : 0;
 
                 // Only auto-save from Wave 2 onwards
                 if (wave >= 2) saveGame();
@@ -5627,7 +5642,8 @@
                                             const splashDmg = b.damage * 0.6 * (1 - d / expRad);
                                             other.hp -= splashDmg;
                                             if (other.hp <= 0) {
-                                                robots.splice(k, 1); robotsAlive--;
+                                                robots.splice(k, 1);
+                                                if (k < j) j--; // Shift index to prevent double kill/sync bug
                                                 player.money += 15;
                                                 // Drop Scrap for explosion victims
                                                 if (Math.random() < 0.4) {
@@ -5653,7 +5669,6 @@
 
                             if (z.hp <= 0) {
                                 robots.splice(j, 1);
-                                robotsAlive--;
                                 player.money += Math.floor(10 + Math.random() * 10);
                                 sparkDecals.push(new SparkDecal(z.x, z.y));
                                 if (sparkDecals.length > 500) sparkDecals.shift();
