@@ -4672,6 +4672,13 @@
             if (e.key.toLowerCase() === 'q' && gameState === 'PLAYING') {
                 cycleWeapons();
             }
+            if (gameState === 'PLAYING' && ['1', '2', '3', '4', '5'].includes(e.key)) {
+                if (e.key === '1') useGrenadeKey();
+                else if (e.key === '2') useMedkit();
+                else if (e.key === '3') useBattery();
+                else if (e.key === '4') useRepairKit();
+                else if (e.key === '5') useRepairCarKit();
+            }
             if (e.key === 'Escape') {
                 if (gameState === 'PLAYING') {
                     pauseGame();
@@ -4814,24 +4821,28 @@
                         <img src="assets/scrap_parts.png">
                         <span id="inv-scrap-count" class="count">${player.inventory.scrap || 0}</span>
                     </div>
-                    <div class="hud-slot" style="--ac:#f97316" title="Granat">
-                        <span class="key">G</span>
+                    <div class="hud-slot" data-clickable onclick="useGrenadeKey()" style="--ac:#f97316" title="Granat (1)">
+                        <span class="key">1</span>
                         <img src="${grenadeIcon}">
                         <span id="inv-grenade-count" class="count">${player.grenades}</span>
                     </div>
-                    <div class="hud-slot" data-clickable onclick="useMedkit()" style="--ac:#ef4444" title="Medkit">
+                    <div class="hud-slot" data-clickable onclick="useMedkit()" style="--ac:#ef4444" title="Medkit (2)">
+                        <span class="key">2</span>
                         <img src="${medkitIcon}">
                         <span id="inv-medkit-count" class="count">${player.inventory.medkit}</span>
                     </div>
-                    <div class="hud-slot" data-clickable onclick="useBattery()" style="--ac:#facc15" title="Baterai">
+                    <div class="hud-slot" data-clickable onclick="useBattery()" style="--ac:#facc15" title="Baterai (3)">
+                        <span class="key">3</span>
                         <img src="${batteryIcon}">
                         <span id="inv-battery-count" class="count">${player.inventory.battery}</span>
                     </div>
-                    <div class="hud-slot" data-clickable onclick="useRepairKit()" style="--ac:#38bdf8" title="Repair Kit">
+                    <div class="hud-slot" data-clickable onclick="useRepairKit()" style="--ac:#38bdf8" title="Repair Kit (4)">
+                        <span class="key">4</span>
                         <img src="${repairKitIcon}">
                         <span id="inv-repair-count" class="count">${player.inventory.repairKit}</span>
                     </div>
-                    <div class="hud-slot" data-clickable onclick="useRepairCarKit()" style="--ac:#a78bfa" title="Repair Car Kit">
+                    <div class="hud-slot" data-clickable onclick="useRepairCarKit()" style="--ac:#a78bfa" title="Repair Car Kit (5)">
+                        <span class="key">5</span>
                         <img src="${repairCarKitIcon}">
                         <span id="inv-repaircar-count" class="count">${player.inventory.repairCarKit}</span>
                     </div>
@@ -5493,6 +5504,14 @@
                 } else {
                     this.speed *= this.friction;
                 }
+            }
+        }
+
+        window.useGrenadeKey = function () {
+            if (gameState === 'PLAYING' && player.grenades > 0 && !player.isAimingGrenade) {
+                player.grenades--;
+                grenades.push(new Grenade(player.x, player.y, worldMouse.x, worldMouse.y));
+                updateHUD();
             }
         }
 
@@ -6423,7 +6442,7 @@
             root.add(bar);
 
             root.userData = {
-                body, legs, eye, bar, mats: M,
+                body, legs, eye, bar, mats: M, eyeY,
                 bodyMesh: body.children[0], baseY: 0, t: Math.random() * 1000,
                 // Daftar mesh pelempar-bayangan, dicache sekali di sini supaya
                 // LOD bisa mematikannya tanpa traverse() tiap frame.
@@ -6472,7 +6491,7 @@
             else u.body.rotation.z = 0;
 
             setHealthBar(u.bar, ent.hp / ent.maxHp);
-            u.bar.position.y = (flying ? 60 : 0) + ent.radius * 2.4;
+            u.bar.position.y = (flying ? 60 : 0) + u.eyeY + ent.radius * 1.2;
 
             // Visual AI: hacked / converted. Materialnya DITUKAR, bukan dimutasi —
             // material dibagi antar musuh setipe, jadi mutasi akan mengubah semuanya.
@@ -7020,12 +7039,12 @@
             this.hemi.intensity += (targetHemi - this.hemi.intensity) * Math.min(1, dt * 0.006);
             this.sun.intensity = isPowerOut ? 0.12 : 1.5;
 
-            // Senter player mengikuti arah hadap
+            // Senter player mengikuti arah hadap (mati saat naik mobil, karena sudah pakai lampu mobil)
             const fl = this.flashlight;
-            fl.intensity = isPowerOut ? LUX(player.inVehicle ? 2.2 : 1.6, 320) : 0;
+            fl.intensity = (isPowerOut && !player.inVehicle) ? LUX(1.04, 320) : 0;
             if (fl.intensity > 0) {
                 fl.position.set(player.x, 45, player.y);
-                fl.distance = player.inVehicle ? 900 : 620;
+                fl.distance = 620;
                 fl.target.position.set(
                     player.x + Math.cos(player.angle) * 400,
                     0,
@@ -7038,7 +7057,7 @@
             const cl = this.carLight;
             const car = hovercars[0];
             const carOn = car && car.active && car.fuel > 0 && car.hp > 100;
-            cl.intensity = carOn ? LUX(1.28, 260) : 0;
+            cl.intensity = carOn ? LUX(1.088, 260) : 0;
             if (carOn) {
                 const heading = car.angle + Math.PI / 2;
                 cl.position.set(car.x, 45, car.y);
