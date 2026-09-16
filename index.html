@@ -1623,6 +1623,9 @@
         let lamps = [];
         let walls = [];
         let floors = [];
+        let roads = [];       // Jalan raya (aspal) - kosmetik, tanpa collision
+        let sidewalks = [];   // Trotoar - kosmetik, tanpa collision
+        let roadMarks = [];   // Marka jalan (garis putus-putus) - kosmetik, tanpa collision
         let mapExpanded = false;
         let currentSaveId = null;
 
@@ -1692,6 +1695,11 @@
                 cacheCtx.beginPath(); cacheCtx.moveTo(0, i); cacheCtx.lineTo(currentMapW, i); cacheCtx.stroke();
             }
 
+            // Draw Roads / Sidewalks / Road Marks (di bawah lantai bangunan)
+            for (let r of roads) { cacheCtx.fillStyle = r.color; cacheCtx.fillRect(r.x, r.y, r.w, r.h); }
+            for (let s of sidewalks) { cacheCtx.fillStyle = s.color; cacheCtx.fillRect(s.x, s.y, s.w, s.h); }
+            for (let m of roadMarks) { cacheCtx.fillStyle = m.color; cacheCtx.fillRect(m.x, m.y, m.w, m.h); }
+
             // Draw Floors
             for (let f of floors) {
                 cacheCtx.fillStyle = f.color || '#1e293b';
@@ -1740,7 +1748,7 @@
             shotgun: { name: 'M-25 Handcannon', soundId: 'shotgun', damage: 150, fireRate: 1100, color: '#f97316', bulletSpeed: 25, spread: 0.04, automatic: false, pellets: 1, knockback: 80, price: 350, icon: 'assets/shotgun_icon.png', ammoType: 'shotgun', isExplosive: true, explosionRadius: 100 },
             laser: { name: 'RBS-80 Induksi', soundId: 'laser', damage: 32, fireRate: 90, color: '#ef4444', bulletSpeed: 45, spread: 0.005, automatic: true, price: 500, icon: 'assets/lasergun_icon.png', ammoType: 'battery' },
             rifle: { name: 'M-20 Plasma Rifle', soundId: 'rifle', damage: 45, fireRate: 120, color: '#a855f7', bulletSpeed: 30, spread: 0.015, automatic: true, price: 700, icon: 'assets/rifle_icon.png', ammoType: 'rifle' },
-            flamethrower: { name: 'Arc Emitter', soundId: 'electric', damage: 120, fireRate: 100, color: '#0ea5e9', bulletSpeed: 10, spread: 0.5, automatic: true, price: 1000, icon: 'assets/flamethrower.png', ammoType: 'flame' }
+            flamethrower: { name: 'Arc Emitter', soundId: 'electric', damage: 200, fireRate: 100, color: '#0ea5e9', bulletSpeed: 10, spread: 0.5, automatic: true, price: 1000, icon: 'assets/flamethrower.png', ammoType: 'flame', shockDecayRate: 0, bulletRadius: 8, overheatFireMs: 7000, overheatCooldownMs: 3000 }
         };
 
         // --- SISTEM AUDIO (Web Audio API Sintetis) ---
@@ -2095,37 +2103,49 @@
         buildings.push({ id: 'store', x: storeX, y: storeY, w: storeW, h: storeH, explored: false, entrances: [{ x: storeX + 210, y: storeY + 480, w: 80, h: 25, side: 'bottom' }] });
         floors.push({ x: storeX, y: storeY, w: storeW, h: storeH, color: '#1e293b', type: 'wood' });
 
-        walls.push({ x: storeX, y: storeY, w: storeW, h: 20 }); // Atas
-        walls.push({ x: storeX, y: storeY, w: 20, h: storeH }); // Kiri
-        walls.push({ x: storeX + 480, y: storeY, w: 20, h: storeH }); // Kanan
-        walls.push({ x: storeX, y: storeY + 480, w: 210, h: 20 }); // Bawah Kiri
-        walls.push({ x: storeX + 290, y: storeY + 480, w: 210, h: 20 }); // Bawah Kanan (Pintu 80px)
+        // id: 'store' pada seluruh tembok gun store — dikecualikan dari
+        // sistem tembok hancur (lihat pengecekan di loop peluru) supaya
+        // safe zone ini tidak bisa dijebol dari luar.
+        walls.push({ id: 'store', x: storeX, y: storeY, w: storeW, h: 20 }); // Atas
+        walls.push({ id: 'store', x: storeX, y: storeY, w: 20, h: storeH }); // Kiri
+        walls.push({ id: 'store', x: storeX + 480, y: storeY, w: 20, h: storeH }); // Kanan
+        walls.push({ id: 'store', x: storeX, y: storeY + 480, w: 210, h: 20 }); // Bawah Kiri
+        walls.push({ id: 'store', x: storeX + 290, y: storeY + 480, w: 210, h: 20 }); // Bawah Kanan (Pintu 80px)
 
         // --- INTERIOR DESIGN: Safe House & Gun Store ---
         // 1. Server Room (Pojok Kiri Atas)
-        walls.push({ x: storeX + 20, y: storeY + 150, w: 120, h: 20 }); // Sekat horizontal
-        walls.push({ x: storeX + 140, y: storeY + 20, w: 20, h: 150 }); // Sekat vertikal
+        walls.push({ id: 'store', x: storeX + 20, y: storeY + 150, w: 120, h: 20 }); // Sekat horizontal
+        walls.push({ id: 'store', x: storeX + 140, y: storeY + 20, w: 20, h: 150 }); // Sekat vertikal
         // Digital Terminals (Small blocks)
-        walls.push({ x: storeX + 40, y: storeY + 40, w: 40, h: 40, color: '#0ea5e9' });
-        walls.push({ x: storeX + 90, y: storeY + 40, w: 40, h: 40, color: '#0ea5e9' });
+        walls.push({ id: 'store', x: storeX + 40, y: storeY + 40, w: 40, h: 40, color: '#0ea5e9' });
+        walls.push({ id: 'store', x: storeX + 90, y: storeY + 40, w: 40, h: 40, color: '#0ea5e9' });
 
         // 2. Main Counter / Meja Kasir (Tengah)
-        walls.push({ x: storeX + 180, y: storeY + 250, w: 140, h: 20 }); // Front desk
-        walls.push({ x: storeX + 180, y: storeY + 250, w: 20, h: 80 });  // Left side desk
-        walls.push({ x: storeX + 300, y: storeY + 250, w: 20, h: 80 });  // Right side desk
+        walls.push({ id: 'store', x: storeX + 180, y: storeY + 250, w: 140, h: 20 }); // Front desk
+        walls.push({ id: 'store', x: storeX + 180, y: storeY + 250, w: 20, h: 80 });  // Left side desk
+        walls.push({ id: 'store', x: storeX + 300, y: storeY + 250, w: 20, h: 80 });  // Right side desk
 
         // 3. Weapon Racks / Storage (Kanan)
-        walls.push({ x: storeX + 450, y: storeY + 50, w: 30, h: 120 }); // Rack 1
-        walls.push({ x: storeX + 450, y: storeY + 200, w: 30, h: 120 }); // Rack 2
+        walls.push({ id: 'store', x: storeX + 450, y: storeY + 50, w: 30, h: 120 }); // Rack 1
+        walls.push({ id: 'store', x: storeX + 450, y: storeY + 200, w: 30, h: 120 }); // Rack 2
 
         // 4. Tech Hub / Digital System (Kiri Bawah)
-        walls.push({ x: storeX + 50, y: storeY + 380, w: 80, h: 80, color: '#38bdf8' });
+        walls.push({ id: 'store', x: storeX + 50, y: storeY + 380, w: 80, h: 80, color: '#38bdf8' });
 
         // Pintu Gun Store & Safe House
         const storeDoor = { x: storeX + 210, y: storeY + 480, w: 80, h: 20, color: '#4b5563', type: 'door', closed: false, id: 'storeDoor' };
         walls.push(storeDoor);
 
         const gunStoreZone = { x: storeX + 50, y: storeY + 50, width: 400, height: 400 };
+
+        // Safe zone: begitu player berada di dalam footprint gedung gun store,
+        // musuh tidak boleh bisa mendeteksinya sama sekali — dipakai sebagai
+        // override di canSeePlayer (Terminator) dan targeting (Colossus),
+        // jadi tidak bergantung pada hasLineOfSight/status pintu terbuka-tutup.
+        function isPlayerInSafeZone() {
+            return player.x > storeX && player.x < storeX + storeW &&
+                player.y > storeY && player.y < storeY + storeH;
+        }
 
 
         // 3. Bangunan 1: Rumah Kompleks (Kiri Atas)
@@ -2252,6 +2272,10 @@
                 this.angle = 0;
                 this.weapon = weapons.pistol;
                 this.lastShot = 0;
+                // Overheat Arc Emitter: nyala terus 7 detik -> terkunci 3 detik.
+                this.heatTime = 0;
+                this.heatLocked = false;
+                this._heatWeapon = this.weapon;
                 this.isAimingGrenade = false;
                 this.inventory = { medkit: 0, battery: 0, repairKit: 0, repairCarKit: 0, scrap: 0 };
                 this.ownedWeapons = ['pistol']; // Senjata yang sudah dibeli
@@ -2378,7 +2402,31 @@
                     }
                 }
 
-                if (mouse.down && this.weapon.automatic) {
+                // Overheat: khusus senjata dengan overheatFireMs (Arc Emitter).
+                // Reset otomatis begitu senjata diganti, supaya kunci panas
+                // tidak "nyangkut" ke senjata lain.
+                if (this.weapon !== this._heatWeapon) {
+                    this._heatWeapon = this.weapon;
+                    this.heatTime = 0;
+                    this.heatLocked = false;
+                }
+                if (this.weapon.overheatFireMs) {
+                    if (this.heatLocked) {
+                        this.heatTime -= dt;
+                        if (this.heatTime <= 0) { this.heatLocked = false; this.heatTime = 0; }
+                    } else if (mouse.down && this.weapon.automatic) {
+                        this.heatTime += dt;
+                        if (this.heatTime >= this.weapon.overheatFireMs) {
+                            this.heatLocked = true;
+                            this.heatTime = this.weapon.overheatCooldownMs || 3000;
+                            showNotify('Arc Emitter overheat! Tunggu sistem dingin...', 'error');
+                        }
+                    } else {
+                        this.heatTime = Math.max(0, this.heatTime - dt * 2); // dingin lagi kalau dilepas
+                    }
+                }
+
+                if (mouse.down && this.weapon.automatic && !this.heatLocked) {
                     this.shoot();
                 }
 
@@ -2966,7 +3014,7 @@
 
                 const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
                 // Hanya bisa melihat jika dalam radius deteksi
-                this.canSeePlayer = distToPlayer < this.detectionRadius && hasLineOfSight(this, player, walls);
+                this.canSeePlayer = !isPlayerInSafeZone() && distToPlayer < this.detectionRadius && hasLineOfSight(this, player, walls);
 
                 let targetAlly = null;
                 if (!this.canSeePlayer) {
@@ -3256,11 +3304,15 @@
                 this.angle = angle;
                 this.speed = isVehicle ? 15 : weapon.bulletSpeed;
                 this.damage = isVehicle ? 100 : weapon.damage;
-                this.radius = isVehicle ? 5 : 3;
+                this.radius = isVehicle ? 5 : (weapon.bulletRadius || 3);
                 this.color = isVehicle ? '#facc15' : weapon.color;
                 this.vx = Math.cos(angle) * this.speed * 60;
                 this.vy = Math.sin(angle) * this.speed * 60;
                 this.isShock = false;
+                this._wavePhase = Math.random() * Math.PI * 2; // fase gelombang visual Arc Emitter
+                // Bullet isShock ("Arc Emitter") habis berdasarkan waktu hidup,
+                // bukan jarak map — decay rate rendah = jangkauan lebih jauh.
+                this.shockDecayRate = weapon.shockDecayRate || 5;
                 this.knockback = isVehicle ? 15 : (weapon.knockback || 0);
                 this.piercesLeft = weapon.pierce || 0;
                 this.hitTargets.clear();
@@ -3274,8 +3326,10 @@
             update(dt) {
                 this.x += this.vx * (dt / 1000);
                 this.y += this.vy * (dt / 1000);
-                if (this.isShock) {
-                    this.life -= dt / 1000 * 5; // Shock life
+                // shockDecayRate 0 = jangkauan penuh seperti senjata lain,
+                // dibatasi map bounds saja (bukan umur peluru).
+                if (this.isShock && this.shockDecayRate > 0) {
+                    this.life -= dt / 1000 * this.shockDecayRate;
                     if (this.life <= 0) this.active = false;
                 }
                 if (this.x < -100 || this.x > currentMapW + 100 || this.y < -100 || this.y > currentMapH + 100) {
@@ -3287,42 +3341,45 @@
                 if (R3.enabled) return;   // dunia digambar oleh R3 (Three.js)
                 ctx.save();
                 if (this.isShock) {
+                    // Arc Emitter: gelombang laser panjang bergelombang (bukan
+                    // percabangan petir pendek) — ekor menjulur ke BELAKANG
+                    // peluru, panjang & ketebalannya mengikuti this.radius
+                    // (bulletRadius senjata), jadi otomatis ikut membesar kalau
+                    // senjatanya di-buff.
                     ctx.save();
-                    ctx.shadowBlur = 15;
+                    ctx.shadowBlur = 22;
                     ctx.shadowColor = '#0ea5e9';
-                    ctx.strokeStyle = '#fff'; // White core
                     ctx.lineCap = 'round';
                     ctx.lineJoin = 'round';
                     ctx.globalAlpha = this.life;
 
-                    const drawArc = (startX, startY, ang, segments, step, spread) => {
-                        ctx.lineWidth = 1 + Math.random() * 2;
-                        ctx.beginPath();
-                        ctx.moveTo(startX, startY);
-                        let lx = startX;
-                        let ly = startY;
-                        for (let i = 0; i < segments; i++) {
-                            const dev = (Math.random() - 0.5) * spread;
-                            lx += Math.cos(ang) * step + Math.cos(ang + Math.PI / 2) * dev;
-                            ly += Math.sin(ang) * step + Math.sin(ang + Math.PI / 2) * dev;
-                            ctx.lineTo(lx, ly);
+                    const segments = 10;
+                    const step = this.radius * 3.2;
+                    const waveAmp = this.radius * 1.4;
+                    const backAngle = this.angle + Math.PI;
+                    const points = [{ x: this.x, y: this.y }];
+                    let lx = this.x, ly = this.y;
+                    for (let i = 1; i <= segments; i++) {
+                        const wave = Math.sin(i * 0.9 + this._wavePhase) * waveAmp;
+                        lx += Math.cos(backAngle) * step + Math.cos(backAngle + Math.PI / 2) * wave;
+                        ly += Math.sin(backAngle) * step + Math.sin(backAngle + Math.PI / 2) * wave;
+                        points.push({ x: lx, y: ly });
+                    }
 
-                            // Branching
-                            if (Math.random() < 0.2 && segments > 2) {
-                                drawArc(lx, ly, ang + (Math.random() - 0.5) * 1, segments - 2, step * 0.8, spread * 0.8);
-                                ctx.moveTo(lx, ly); // Resume main arc
-                            }
-                        }
-                        ctx.stroke();
+                    // Glow luar tebal
+                    ctx.strokeStyle = '#0ea5e9';
+                    ctx.lineWidth = this.radius * 1.6;
+                    ctx.globalAlpha = this.life * 0.4;
+                    ctx.beginPath();
+                    ctx.moveTo(points[0].x, points[0].y);
+                    for (const p of points) ctx.lineTo(p.x, p.y);
+                    ctx.stroke();
 
-                        // Glowing outer line
-                        ctx.strokeStyle = '#0ea5e9';
-                        ctx.lineWidth = 4 + Math.random() * 4;
-                        ctx.globalAlpha = this.life * 0.3;
-                        ctx.stroke();
-                    };
-
-                    drawArc(this.x, this.y, this.angle, 6, 10, 20 * this.life);
+                    // Inti putih terang
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = this.radius * 0.55;
+                    ctx.globalAlpha = this.life;
+                    ctx.stroke();
                     ctx.restore();
                 } else if (this.speed > 25) {
                     // RBS-80 Elongated Laser Bolt (Red)
@@ -3345,16 +3402,6 @@
                     ctx.fillStyle = this.color; ctx.fill();
                 }
                 ctx.restore();
-            }
-
-            update(dt) {
-                this.x += this.vx * (dt / 1000);
-                this.y += this.vy * (dt / 1000);
-                if (this.isShock) {
-                    this.life -= (dt / 1000) * 2.5; // Zap dies quickly
-                    this.vx *= 0.85; // Slow down more to create "remnant" look
-                    this.vy *= 0.85;
-                }
             }
         }
 
@@ -3750,75 +3797,50 @@
         // --- SISTEM HIVE MIND & MARKAS (Global Coordination) ---
         let hiveSignals = [];
         let robotBases = [];
+        // Sekali ditentukan, TIDAK PERNAH diacak ulang (beda dari sistem lama
+        // yang menghapus & memindah markas tiap wave). Markas menempati salah
+        // satu gedung kota (`city_b_*`) yang sudah dibangun secara acak — jadi
+        // ada gedung yang isinya kosong, ada yang ternyata sarang musuh, dan
+        // begitu core-nya dihancurkan, gedung itu tetap mati selamanya.
+        let nestBuildingIds = null;
 
-        function isBuildingOverlap(nx, ny, nw, nh, padding = 150) {
-            const rect1 = { x: nx - padding, y: ny - padding, w: nw + padding * 2, h: nh + padding * 2 };
-            for (let b of buildings) {
-                const rect2 = { x: b.x, y: b.y, w: b.w, h: b.h };
-                if (rect1.x < rect2.x + rect2.w &&
-                    rect1.x + rect1.w > rect2.x &&
-                    rect1.y < rect2.y + rect2.h &&
-                    rect1.y + rect1.h > rect2.y) {
-                    return true;
-                }
-            }
-            return false;
-        }
+        function assignEnemyNests(count = 2) {
+            if (nestBuildingIds) return; // sudah pernah ditentukan, jangan diulang
+            const pool = buildings.filter(b => b.id && b.id.startsWith('city_b_'));
+            if (!pool.length) return; // gedung kota belum digenerate (peta belum expand)
 
-        function generateSecretBases(count = 2) {
-            // Hapus markas lama dari wave sebelumnya
-            robotBases = [];
-            buildings = buildings.filter(b => !b.id || !b.id.startsWith("wave_base_"));
-            floors = floors.filter(f => !f.id || !f.id.startsWith("wave_base_"));
-            walls = walls.filter(w => !w.id || !w.id.startsWith("wave_base_"));
+            const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+            const chosen = shuffled.slice(0, Math.min(count, shuffled.length));
+            nestBuildingIds = chosen.map(b => b.id);
 
-            if (wave < 6) return;
+            for (const b of chosen) {
+                b.isNest = true;
+                // Ganti id tembok & warna lantai gedung ini supaya R3 merender
+                // materialnya sebagai "markas musuh" (R3.wallMaterial sudah
+                // mengecek prefix 'wave_base_', jadi tidak perlu ubah render).
+                for (const w of walls) if (w.id === b.id) w.id = 'wave_base_' + b.id;
+                for (const f of floors) if (f.id === b.id) f.color = '#170f14';
 
-            for (let i = 0; i < count; i++) {
-                let x, y, tries = 0;
-                let valid = false;
-
-                while (!valid && tries < 50) {
-                    x = 500 + Math.random() * (currentMapW - 1000);
-                    y = 500 + Math.random() * (currentMapH - 1000);
-                    tries++;
-
-                    const distToSpawn = Math.hypot(x - 1500, y - 1650);
-                    if (distToSpawn > 1200 && !isBuildingOverlap(x, y, 400, 400, 200)) {
-                        valid = true;
-                    }
-                }
-
-                if (!valid) continue;
-
-                const baseId = "wave_base_" + i;
-
+                const boxW = 40, boxH = 60;
+                const boxX = b.x + b.w / 2 - boxW / 2;
+                const boxY = b.y + b.h / 2 - boxH / 2;
                 robotBases.push({
-                    id: baseId,
-                    x: x, y: y,
-                    w: 400, h: 400,
+                    id: 'wave_base_' + b.id,
+                    x: b.x, y: b.y, w: b.w, h: b.h,
                     lastSpawn: Date.now(),
                     hp: 1500, // Core health
                     maxHp: 1500,
                     active: true,
-                    boxX: x + 180, boxY: y + 40, boxW: 40, boxH: 60
+                    boxX, boxY, boxW, boxH
                 });
+            }
+            // floors/walls berubah in-place (tanpa mengubah panjang array),
+            // jadi R3.staticSignature() tidak otomatis mendeteksi ini — paksa
+            // rebuild sekali supaya warna markas langsung tampak.
+            if (typeof R3 !== 'undefined' && R3.enabled) R3.buildStaticWorld();
 
-                // Building visual
-                buildings.push({
-                    id: baseId,
-                    x: x, y: y, w: 400, h: 400, explored: false,
-                    entrances: [{ x: x + 160, y: y + 380, w: 80, h: 20, side: 'bottom' }]
-                });
-
-                floors.push({ id: baseId, x: x, y: y, w: 400, h: 400, color: '#0f172a', type: 'concrete' });
-
-                // Perimeter walls
-                walls.push({ id: baseId, x: x, y: y, w: 400, h: 20 });
-                walls.push({ id: baseId, x: x, y: y + 380, w: 160, h: 20 });
-                walls.push({ id: baseId, x: x + 240, y: y + 380, w: 160, h: 20 });
-                walls.push({ id: baseId, x: x, y: y, w: 20, h: 400 });
-                walls.push({ id: baseId, x: x + 380, y: y, w: 20, h: 400 });
+            if (chosen.length && typeof showNotify === 'function') {
+                showNotify(`Hive Mind terdeteksi: ${chosen.length} gedung di distrik luar ternyata markas musuh. Cari dindingnya yang menyala merah.`, 'info');
             }
         }
 
@@ -4012,6 +4034,193 @@
             coords.forEach(c => barrels.push(new Barrel(c[0], c[1])));
         }
         initBarrels();
+
+        // --- SISTEM JALAN KOTA (jalan raya, trotoar, marka, lampu jalan) ---
+        // Kosmetik murni: roads/sidewalks/roadMarks tidak dipakai resolveCollision,
+        // jadi aman ditambah tanpa menyentuh logika gameplay. Segmen otomatis
+        // "bolong" di area yang ditempati bangunan supaya tidak tumpang tindih
+        // dengan lantai interior yang sudah ada.
+        const ROAD_COLOR = '#1b212c';
+        const SIDEWALK_COLOR = '#33404f';
+        const ROAD_MARK_COLOR = '#d1b34a';
+        const ROAD_W = 160, SIDEWALK_W = 36, ROAD_SPACING = 1000, ROAD_MARGIN = 200;
+
+        function isFreeOfBuildings(x, y, w, h, pad = 30) {
+            for (const b of buildings) {
+                if (x < b.x + b.w + pad && x + w > b.x - pad &&
+                    y < b.y + b.h + pad && y + h > b.y - pad) return false;
+            }
+            return true;
+        }
+
+        // Jarak dari koordinat `v` ke garis grid jalan TERDEKAT (kelipatan
+        // ROAD_SPACING dari ROAD_MARGIN). Dipakai untuk mendeteksi "apakah
+        // titik ini ada di dalam kotak perempatan" tanpa perlu menyimpan
+        // daftar semua garis grid yang pernah dibuat — bekerja untuk grid
+        // awal maupun grid tambahan saat map expand karena keduanya di
+        // lattice yang sama.
+        function distToRoadGridLine(v) {
+            const m = ((v - ROAD_MARGIN) % ROAD_SPACING + ROAD_SPACING) % ROAD_SPACING;
+            return Math.min(m, ROAD_SPACING - m);
+        }
+
+        // Memecah strip panjang jadi beberapa segmen, melewati bagian yang
+        // ditempati bangunan (dan, kalau `blockedFn` diberikan, bagian yang
+        // dekat perempatan jalan tegak lurus — supaya aspal/trotoar/marka
+        // tidak saling tumpang tindih di persimpangan, penyebab kedap-kedip
+        // dan tampilan berantakan), lalu menggabungkan run yang bersambungan
+        // supaya jumlah mesh/instance tetap kecil.
+        function addRoadStrip(target, x, y, w, h, color, cell = 100, blockedFn = null) {
+            const horizontal = w >= h;
+            let runStart = null;
+            if (horizontal) {
+                for (let cx = x; cx < x + w; cx += cell) {
+                    const segW = Math.min(cell, x + w - cx);
+                    const free = isFreeOfBuildings(cx, y, segW, h) && (!blockedFn || !blockedFn(cx + segW / 2));
+                    if (free) {
+                        if (runStart === null) runStart = cx;
+                    } else if (runStart !== null) {
+                        target.push({ x: runStart, y, w: cx - runStart, h, color });
+                        runStart = null;
+                    }
+                }
+                if (runStart !== null) target.push({ x: runStart, y, w: x + w - runStart, h, color });
+            } else {
+                for (let cy = y; cy < y + h; cy += cell) {
+                    const segH = Math.min(cell, y + h - cy);
+                    const free = isFreeOfBuildings(x, cy, w, segH) && (!blockedFn || !blockedFn(cy + segH / 2));
+                    if (free) {
+                        if (runStart === null) runStart = cy;
+                    } else if (runStart !== null) {
+                        target.push({ x, y: runStart, w, h: cy - runStart, color });
+                        runStart = null;
+                    }
+                }
+                if (runStart !== null) target.push({ x, y: runStart, w, h: y + h - runStart, color });
+            }
+        }
+
+        // gridFrom/gridTo membatasi garis grid MANA yang dibuat (bukan panjang
+        // strip-nya, yang selalu 0..mapSize) — dipakai supaya panggilan kedua
+        // saat map expand hanya MENAMBAH garis jalan baru di luar grid lama,
+        // tanpa menggambar ulang (dan menumpuk) grid awal yang sudah ada.
+        function generateRoadNetwork(mapSize, gridFrom, gridTo) {
+            if (gridFrom === undefined) gridFrom = ROAD_MARGIN;
+            if (gridTo === undefined) gridTo = mapSize - ROAD_MARGIN;
+
+            // Jalan horizontal digambar dulu dan "memiliki" setiap kotak
+            // perempatan secara penuh; jalan vertikal berhenti pas di tepi
+            // kotak itu (lewat blockedFn) supaya tidak dobel-render di titik
+            // yang sama — itu penyebab utama kedap-kedip di persimpangan.
+            for (let gy = gridFrom; gy < gridTo; gy += ROAD_SPACING) {
+                addRoadStrip(roads, 0, gy - ROAD_W / 2, mapSize, ROAD_W, ROAD_COLOR);
+            }
+            const nearHLine = (v) => distToRoadGridLine(v) < ROAD_W / 2;
+            for (let gx = gridFrom; gx < gridTo; gx += ROAD_SPACING) {
+                addRoadStrip(roads, gx - ROAD_W / 2, 0, ROAD_W, mapSize, ROAD_COLOR, 100, nearHLine);
+            }
+
+            // Trotoar: berhenti sebelum perempatan jalan tegak lurus di KEDUA
+            // arah, supaya bertemu rapi di tepi jalan (tidak menembus aspal
+            // atau saling tumpuk di pojok persimpangan).
+            for (let gx = gridFrom; gx < gridTo; gx += ROAD_SPACING) {
+                addRoadStrip(sidewalks, gx - ROAD_W / 2 - SIDEWALK_W, 0, SIDEWALK_W, mapSize, SIDEWALK_COLOR, 100, nearHLine);
+                addRoadStrip(sidewalks, gx + ROAD_W / 2, 0, SIDEWALK_W, mapSize, SIDEWALK_COLOR, 100, nearHLine);
+                for (let ly = ROAD_MARGIN + 100; ly < mapSize - ROAD_MARGIN; ly += 500) {
+                    lamps.push(new Lamp(gx - ROAD_W / 2 - SIDEWALK_W - 25, ly, 260));
+                }
+            }
+            const nearVLine = (v) => distToRoadGridLine(v) < ROAD_W / 2;
+            for (let gy = gridFrom; gy < gridTo; gy += ROAD_SPACING) {
+                addRoadStrip(sidewalks, 0, gy - ROAD_W / 2 - SIDEWALK_W, mapSize, SIDEWALK_W, SIDEWALK_COLOR, 100, nearVLine);
+                addRoadStrip(sidewalks, 0, gy + ROAD_W / 2, mapSize, SIDEWALK_W, SIDEWALK_COLOR, 100, nearVLine);
+                for (let lx = ROAD_MARGIN + 100; lx < mapSize - ROAD_MARGIN; lx += 500) {
+                    lamps.push(new Lamp(lx, gy - ROAD_W / 2 - SIDEWALK_W - 25, 260));
+                }
+            }
+
+            // Marka: dilompati di dalam kotak perempatan (jalan nyata juga
+            // tidak mengecat garis tengah menembus persimpangan).
+            for (let gx = gridFrom; gx < gridTo; gx += ROAD_SPACING) {
+                for (let my = 40; my < mapSize; my += 140) {
+                    if (nearHLine(my + 35)) continue;
+                    addRoadStrip(roadMarks, gx - 6, my, 12, 70, ROAD_MARK_COLOR, 70);
+                }
+            }
+            for (let gy = gridFrom; gy < gridTo; gy += ROAD_SPACING) {
+                for (let mx = 40; mx < mapSize; mx += 140) {
+                    if (nearVLine(mx + 35)) continue;
+                    addRoadStrip(roadMarks, mx, gy - 6, 70, 12, ROAD_MARK_COLOR, 70);
+                }
+            }
+        }
+        generateRoadNetwork(INITIAL_MAP_SIZE);
+
+        // --- GEDUNG KOTA GENERIK (mengisi distrik luar setelah map expand) ---
+        // Sebagian dari gedung-gedung ini akan diundi jadi markas musuh oleh
+        // assignEnemyNests() — sisanya tetap kosong/bisa dimasuki begitu saja.
+        function isFreeOfRoads(x, y, w, h, pad = 24) {
+            for (const r of roads) {
+                if (x < r.x + r.w + pad && x + w > r.x - pad &&
+                    y < r.y + r.h + pad && y + h > r.y - pad) return false;
+            }
+            for (const s of sidewalks) {
+                if (x < s.x + s.w + pad && x + w > s.x - pad &&
+                    y < s.y + s.h + pad && y + h > s.y - pad) return false;
+            }
+            return true;
+        }
+
+        // Rakit gedung persegi sederhana dengan satu pintu di sisi acak
+        // (pola sama seperti bangunan hand-crafted lain: tembok + entrances[]),
+        // supaya collision/atap-transparan/minimap bekerja tanpa kode baru.
+        function buildGenericBuilding(id, x, y, w, h, floorColor) {
+            const T = 20;
+            const doorW = Math.min(90, Math.floor(Math.min(w, h) * 0.28));
+            const side = ['top', 'bottom', 'left', 'right'][Math.floor(Math.random() * 4)];
+            let entrance;
+
+            if (side === 'top' || side === 'bottom') {
+                const gx = x + (w - doorW) / 2;
+                const wallY = side === 'top' ? y : y + h - T;
+                walls.push({ id, x, y: wallY, w: gx - x, h: T });
+                walls.push({ id, x: gx + doorW, y: wallY, w: (x + w) - (gx + doorW), h: T });
+                walls.push({ id, x, y: side === 'top' ? y + T : y, w: T, h: h - T });
+                walls.push({ id, x: x + w - T, y: side === 'top' ? y + T : y, w: T, h: h - T });
+                walls.push({ id, x, y: side === 'top' ? y + h - T : y, w, h: T });
+                entrance = { x: gx, y: wallY, w: doorW, h: T, side };
+            } else {
+                const gy = y + (h - doorW) / 2;
+                const wallX = side === 'left' ? x : x + w - T;
+                walls.push({ id, x: wallX, y, w: T, h: gy - y });
+                walls.push({ id, x: wallX, y: gy + doorW, w: T, h: (y + h) - (gy + doorW) });
+                walls.push({ id, x: side === 'left' ? x + T : x, y, w: w - T, h: T });
+                walls.push({ id, x: side === 'left' ? x + T : x, y: y + h - T, w: w - T, h: T });
+                walls.push({ id, x: side === 'left' ? x + w - T : x, y, w: T, h });
+                entrance = { x: wallX, y: gy, w: T, h: doorW, side };
+            }
+
+            buildings.push({ id, x, y, w, h, explored: false, entrances: [entrance] });
+            floors.push({ id, x, y, w, h, color: floorColor || '#25303f', type: 'concrete' });
+        }
+
+        function placeCityBuildings(x0, y0, x1, y1, count, idPrefix) {
+            const templates = [
+                { w: 340, h: 280 }, { w: 280, h: 380 }, { w: 460, h: 300 },
+                { w: 260, h: 260 }, { w: 400, h: 400 }, { w: 320, h: 460 },
+            ];
+            let placed = 0, guard = 0;
+            while (placed < count && guard < count * 30) {
+                guard++;
+                const t = templates[Math.floor(Math.random() * templates.length)];
+                const x = x0 + Math.random() * Math.max(1, (x1 - x0 - t.w));
+                const y = y0 + Math.random() * Math.max(1, (y1 - y0 - t.h));
+                if (!isFreeOfBuildings(x, y, t.w, t.h, 60)) continue;
+                if (!isFreeOfRoads(x, y, t.w, t.h)) continue;
+                buildGenericBuilding(`${idPrefix}_${placed}`, x, y, t.w, t.h);
+                placed++;
+            }
+        }
 
         async function showTypingMessage(text) {
             gameState = 'READING';
@@ -5000,9 +5209,15 @@
                 if (this.slowTimer > 0) { this.slowTimer -= dt; }
                 const currentSpeed = this.speed * (this.slowTimer > 0 ? this.slowFactor : 1);
                 const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+                // Colossus tidak pakai hasLineOfSight (selalu "tahu" posisi
+                // player) — safe zone gun store jadi satu-satunya cara
+                // menyembunyikan diri darinya, jadi dicek eksplisit di sini.
+                const playerHidden = isPlayerInSafeZone();
 
                 // Movement: approach but keep distance
-                if (distToPlayer > 350) {
+                if (playerHidden) {
+                    // Buta total — tidak bergerak mengejar
+                } else if (distToPlayer > 350) {
                     const ang = Math.atan2(player.y - this.y, player.x - this.x);
                     this.angle = ang;
                     this.x += Math.cos(ang) * currentSpeed * (dt / 1000);
@@ -5017,6 +5232,8 @@
                 }
 
                 for (let w of walls) resolveCollision(this, w);
+
+                if (playerHidden) return; // tidak menembak/emit signal saat player bersembunyi
 
                 // Shoot at player
                 const now = performance.now();
@@ -5275,6 +5492,10 @@
                 ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, currentMapH); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(currentMapW, i); ctx.stroke();
             }
+
+            for (let r of roads) { ctx.fillStyle = r.color; ctx.fillRect(r.x, r.y, r.w, r.h); }
+            for (let s of sidewalks) { ctx.fillStyle = s.color; ctx.fillRect(s.x, s.y, s.w, s.h); }
+            for (let m of roadMarks) { ctx.fillStyle = m.color; ctx.fillRect(m.x, m.y, m.w, m.h); }
 
             for (let f of floors) {
                 ctx.fillStyle = f.color;
@@ -5721,10 +5942,17 @@
             sc.near = 10; sc.far = 1800;
             this.scene.add(this.ambient, this.hemi, this.sun, this.sun.target);
 
-            // Senter player — pengganti trik darkCanvas 2D saat listrik padam
+            // Senter player — pengganti trik darkCanvas 2D saat listrik padam.
+            // castShadow diaktifkan (mengikuti toggle kualitas sama seperti
+            // matahari, lihat R3.applyQuality) supaya sorotannya BERHENTI di
+            // tembok, bukan tembus — tanpa ini cahaya bocor ke ruangan lain.
             this.flashlight = new THREE.SpotLight(
                 0xfff3c4, 0, 900, Math.PI / 5.5, 0.45, 1.2);
             this.flashlight.castShadow = false;
+            this.flashlight.shadow.mapSize.set(512, 512);
+            this.flashlight.shadow.bias = -0.003;
+            this.flashlight.shadow.camera.near = 10;
+            this.flashlight.shadow.camera.far = 650;
             this.scene.add(this.flashlight, this.flashlight.target);
 
             // Lampu interior. Versi 2D menggelapkan SEGALANYA KECUALI bagian
@@ -5807,6 +6035,7 @@
             this.bloom.enabled = high || med;
             this.bloom.strength = high ? 0.85 : 0.5;
             this.sun.castShadow = high;
+            this.flashlight.castShadow = high;
             this.renderer.setPixelRatio(high ? Math.min(devicePixelRatio, 1.5) : 1);
             this.scene.traverse(o => {
                 if ((o.isMesh || o.isInstancedMesh) && o.userData.shadowCaster) o.castShadow = high;
@@ -5879,11 +6108,54 @@
             a.matNeon = emissiveMat(PAL.cyan, 2.0);
             a.matAlly = mat(PAL.ally, { emissive: PAL.ally, emissiveIntensity: 0.35 });
 
-            // Sprite health bar (dua sprite berbagi material)
-            a.matBarBg = new THREE.SpriteMaterial({ color: 0x0f172a, depthTest: false, transparent: true, opacity: 0.85 });
-            a.matBarFill = new THREE.SpriteMaterial({ color: 0xef4444, depthTest: false });
-            a.matBarFillAlly = new THREE.SpriteMaterial({ color: 0x22c55e, depthTest: false });
-            a.matBarFillFuel = new THREE.SpriteMaterial({ color: 0xfacc15, depthTest: false });
+            // Sprite health bar (dua sprite berbagi material) — dulu kotak
+            // polos (SpriteMaterial warna datar), sekarang dirender ke canvas
+            // sekali sebagai tekstur rounded-rect + border/gradasi, lalu
+            // dipakai ulang oleh SEMUA health bar (ally, mobil, musuh) via
+            // SpriteMaterial.color untuk tinting per tipe. Karena teksturnya
+            // dibuat sekali & dibagi bersama, ini tidak menambah draw call.
+            const makeBarCanvasTexture = (draw) => {
+                const c = document.createElement('canvas');
+                c.width = 128; c.height = 32;
+                draw(c.getContext('2d'), c.width, c.height);
+                const tex = new THREE.CanvasTexture(c);
+                tex.minFilter = THREE.LinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                tex.generateMipmaps = false;
+                tex.needsUpdate = true;
+                return tex;
+            };
+            const barBgTex = makeBarCanvasTexture((cx, w, h) => {
+                const r = h * 0.34;
+                cx.beginPath();
+                cx.roundRect(1, 1, w - 2, h - 2, r);
+                cx.fillStyle = 'rgba(6, 11, 22, 0.88)';
+                cx.fill();
+                cx.lineWidth = 2.5;
+                cx.strokeStyle = 'rgba(148, 180, 214, 0.65)';
+                cx.stroke();
+            });
+            const barFillTex = makeBarCanvasTexture((cx, w, h) => {
+                const r = h * 0.3;
+                cx.beginPath();
+                cx.roundRect(0, 0, w, h, r);
+                const grad = cx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, 'rgba(255,255,255,1)');
+                grad.addColorStop(0.45, 'rgba(255,255,255,0.8)');
+                grad.addColorStop(0.55, 'rgba(255,255,255,0.8)');
+                grad.addColorStop(1, 'rgba(255,255,255,1)');
+                cx.fillStyle = grad;
+                cx.fill();
+                // Highlight tipis di tepi atas — kesan glossy/presisi
+                cx.beginPath();
+                cx.roundRect(1, 1, w - 2, h * 0.35, r * 0.7);
+                cx.fillStyle = 'rgba(255,255,255,0.35)';
+                cx.fill();
+            });
+            a.matBarBg = new THREE.SpriteMaterial({ map: barBgTex, depthTest: false, transparent: true });
+            a.matBarFill = new THREE.SpriteMaterial({ map: barFillTex, color: 0xef4444, depthTest: false, transparent: true });
+            a.matBarFillAlly = new THREE.SpriteMaterial({ map: barFillTex, color: 0x22c55e, depthTest: false, transparent: true });
+            a.matBarFillFuel = new THREE.SpriteMaterial({ map: barFillTex, color: 0xfacc15, depthTest: false, transparent: true });
         };
 
         // Gabungkan beberapa mesh jadi satu geometry -> satu draw call per entity
@@ -5949,7 +6221,8 @@
 
         R3.staticSignature = function () {
             return [walls.length, floors.length, buildings.length,
-                currentMapW, currentMapH, robotBases.length, lamps.length].join('|');
+                currentMapW, currentMapH, robotBases.length, lamps.length,
+                roads.length, sidewalks.length, roadMarks.length].join('|');
         };
 
         R3.buildStaticWorld = function () {
@@ -5983,6 +6256,36 @@
             grid.material.transparent = true;
             grid.position.set(currentMapW / 2, 0.4, currentMapH / 2);
             this.staticGroup.add(grid);
+
+            // --- Jalan raya, trotoar, marka jalan ---
+            // Instanced per warna (bukan per objek) supaya jumlah segmen jalan
+            // tidak menambah draw call secara signifikan, meniru pola tembok.
+            const streetLayers = [
+                { list: roads, y: 0.5 },
+                { list: sidewalks, y: 0.55 },
+                { list: roadMarks, y: 0.6 },
+            ];
+            const streetDummy = new THREE.Object3D();
+            for (const layer of streetLayers) {
+                const byColor = new Map();
+                for (const s of layer.list) {
+                    if (!byColor.has(s.color)) byColor.set(s.color, []);
+                    byColor.get(s.color).push(s);
+                }
+                for (const [color, list] of byColor) {
+                    const inst = new THREE.InstancedMesh(A.plane, mat(new THREE.Color(color), { roughness: 0.9 }), list.length);
+                    inst.receiveShadow = true;
+                    list.forEach((s, i) => {
+                        streetDummy.position.set(s.x + s.w / 2, layer.y, s.y + s.h / 2);
+                        streetDummy.rotation.set(-Math.PI / 2, 0, 0);
+                        streetDummy.scale.set(s.w, s.h, 1);
+                        streetDummy.updateMatrix();
+                        inst.setMatrixAt(i, streetDummy.matrix);
+                    });
+                    inst.instanceMatrix.needsUpdate = true;
+                    this.staticGroup.add(inst);
+                }
+            }
 
             // --- Lantai ruangan ---
             for (const f of floors) {
@@ -6057,9 +6360,9 @@
                 const geo = new THREE.BoxGeometry(b.w, 12, b.h);
                 geo.userData.disposable = true;
                 // PENTING: dunia statis di-rebuild kapan pun staticSignature()
-                // berubah (misal generateSecretBases() menempatkan markas
-                // dengan jumlah acak tiap wave — kadang 1, kadang 2 — yang
-                // mengubah panjang array walls/buildings). Kalau atap SELALU
+                // berubah (misal placeCityBuildings() menambah gedung baru saat
+                // map expand, yang mengubah panjang array walls/buildings). Kalau
+                // atap SELALU
                 // lahir dengan opacity 1 (solid), setiap rebuild yang terjadi
                 // sementara player berada di dalam gedung akan terlihat
                 // seperti "atap menutup lagi", padahal cuma reset visual.
@@ -6091,23 +6394,31 @@
                 this.roofs.push({ b, mesh: m });
             }
 
-            // --- Lampu jalan: PointLight nyata, bukan gradien 2D ---
-            for (const l of lamps) {
-                const pole = new THREE.Mesh(A.cyl, A.matSteel);
-                pole.scale.set(5, 90, 5);
-                pole.position.set(l.x, 45, l.y);
-                pole.castShadow = false;
-                this.staticGroup.add(pole);
+            // --- Lampu jalan: tiang & bola instanced (banyak lampu jalan
+            // sekarang berkat grid kota) supaya tetap 2 draw call total,
+            // bukan 2 per lampu. PointLight tetap tidak per-lampu — lihat
+            // R3.lampPool (4 terdekat saja) di updateLighting().
+            if (!A.matBulb) A.matBulb = emissiveMat(0xfff3c4, 2.5);
+            if (lamps.length) {
+                const poleInst = new THREE.InstancedMesh(A.cyl, A.matSteel, lamps.length);
+                const bulbInst = new THREE.InstancedMesh(A.sphere, A.matBulb, lamps.length);
+                lamps.forEach((l, i) => {
+                    streetDummy.position.set(l.x, 45, l.y);
+                    streetDummy.rotation.set(0, 0, 0);
+                    streetDummy.scale.set(5, 90, 5);
+                    streetDummy.updateMatrix();
+                    poleInst.setMatrixAt(i, streetDummy.matrix);
 
-                if (!A.matBulb) A.matBulb = emissiveMat(0xfff3c4, 2.5);
-                const bulb = new THREE.Mesh(A.sphere, A.matBulb);
-                bulb.scale.setScalar(9);
-                bulb.position.set(l.x, 95, l.y);
-                this.staticGroup.add(bulb);
+                    streetDummy.position.set(l.x, 95, l.y);
+                    streetDummy.scale.setScalar(9);
+                    streetDummy.updateMatrix();
+                    bulbInst.setMatrixAt(i, streetDummy.matrix);
 
-                // Tidak ada PointLight per lampu — penerangan diambil dari
-                // R3.lampPool (4 terdekat saja), lihat updateLighting().
-                this.lamps.push({ ent: l, bulb });
+                    this.lamps.push({ ent: l });
+                });
+                poleInst.instanceMatrix.needsUpdate = true;
+                bulbInst.instanceMatrix.needsUpdate = true;
+                this.staticGroup.add(poleInst, bulbInst);
             }
 
             // --- Power box markas robot ---
@@ -6328,10 +6639,17 @@
         R3.enemyMats = function (key, colorHex, strokeHex) {
             this._emats = this._emats || {};
             if (!this._emats[key]) {
+                // BOSS_TANK & COLOSSUS: logam lebih gelap & basah (metalness
+                // naik, roughness turun) plus glow dasar lebih terang — kesan
+                // mesin berat yang "hidup", bukan sekadar lapis baja biasa.
+                const isHeavy = key === 'BOSS_TANK' || key === 'COLOSSUS';
                 this._emats[key] = {
-                    body: mat(colorHex, { metalness: 0.75, roughness: 0.35, emissive: strokeHex, emissiveIntensity: 0.25 }),
+                    body: mat(colorHex, {
+                        metalness: isHeavy ? 0.88 : 0.75, roughness: isHeavy ? 0.22 : 0.35,
+                        emissive: strokeHex, emissiveIntensity: isHeavy ? 0.5 : 0.25,
+                    }),
                     legs: mat(0x334155, { metalness: 0.8, roughness: 0.3 }),
-                    eye: emissiveMat(strokeHex, 2.6),
+                    eye: emissiveMat(strokeHex, isHeavy ? 3.2 : 2.6),
                     ring: emissiveMat(strokeHex, 1.8),
                 };
             }
@@ -6404,14 +6722,32 @@
                 body.add(ring);
                 eyeY = 0;
             } else if (ent.type === 'BOSS_TANK') {
+                // Siluet predator lapis baja: badan lebih kekar, moncong
+                // menjorok agresif dengan taring, duri bahu, dan retakan
+                // energi menyala — bukan sekadar kotak logam bulat.
                 body.add(...mergeGroup([
-                    { geo: A.rbox, mat: bodyMat, pos: [0, r * 0.9, 0], scale: [r * 1.9, r * 1.1, r * 1.7] },
-                    { geo: A.box, mat: A.matSteel, pos: [0, r * 0.35, -r * 0.95], scale: [r * 2.0, r * 0.7, r * 0.5] },
-                    { geo: A.box, mat: A.matSteel, pos: [0, r * 0.35, r * 0.95], scale: [r * 2.0, r * 0.7, r * 0.5] },
-                    { geo: A.box, mat: bodyMat, pos: [r * 1.1, r * 1.0, 0], scale: [r * 1.1, r * 0.4, r * 0.4] },
+                    { geo: A.rbox, mat: bodyMat, pos: [0, r * 0.9, 0], scale: [r * 2.1, r * 1.3, r * 1.85] },
+                    { geo: A.box, mat: A.matSteel, pos: [0, r * 0.35, -r * 1.0], scale: [r * 2.2, r * 0.75, r * 0.5] },
+                    { geo: A.box, mat: A.matSteel, pos: [0, r * 0.35, r * 1.0], scale: [r * 2.2, r * 0.75, r * 0.5] },
+                    // Moncong/ram depan — menjorok, bukan sekadar laras kecil
+                    { geo: A.box, mat: A.matSteel, pos: [r * 1.15, r * 0.85, 0], scale: [r * 0.9, r * 0.6, r * 1.05] },
+                    { geo: A.box, mat: bodyMat, pos: [r * 1.4, r * 1.0, 0], scale: [r * 0.55, r * 0.32, r * 0.55] },
+                    // Taring depan (baris duri kecil di bawah moncong)
+                    { geo: A.cone, mat: A.matSteel, pos: [r * 1.62, r * 0.5, -r * 0.55], scale: [r * 0.11, r * 0.42, r * 0.11], rot: [0, 0, -Math.PI / 2 + 0.35] },
+                    { geo: A.cone, mat: A.matSteel, pos: [r * 1.68, r * 0.48, -r * 0.22], scale: [r * 0.12, r * 0.46, r * 0.12], rot: [0, 0, -Math.PI / 2 + 0.15] },
+                    { geo: A.cone, mat: A.matSteel, pos: [r * 1.72, r * 0.48, r * 0.1], scale: [r * 0.13, r * 0.5, r * 0.13], rot: [0, 0, -Math.PI / 2] },
+                    { geo: A.cone, mat: A.matSteel, pos: [r * 1.68, r * 0.48, r * 0.42], scale: [r * 0.12, r * 0.46, r * 0.12], rot: [0, 0, -Math.PI / 2 - 0.15] },
+                    // Duri bahu/punggung — siluet predator dari kejauhan
+                    { geo: A.cone, mat: A.matSteel, pos: [-r * 0.55, r * 1.85, -r * 0.7], scale: [r * 0.22, r * 0.75, r * 0.22], rot: [0.35, 0, 0.35] },
+                    { geo: A.cone, mat: A.matSteel, pos: [-r * 0.55, r * 1.85, r * 0.7], scale: [r * 0.22, r * 0.75, r * 0.22], rot: [-0.35, 0, 0.35] },
+                    { geo: A.cone, mat: A.matSteel, pos: [r * 0.15, r * 2.0, -r * 0.5], scale: [r * 0.18, r * 0.85, r * 0.18], rot: [0.2, 0, 0.18] },
+                    { geo: A.cone, mat: A.matSteel, pos: [r * 0.15, r * 2.0, r * 0.5], scale: [r * 0.18, r * 0.85, r * 0.18], rot: [-0.2, 0, 0.18] },
+                    // Retakan energi menyala di dada — kesan reaktor terbuka/terluka
+                    { geo: A.box, mat: M.eye, pos: [r * 0.25, r * 1.15, -r * 0.6], scale: [r * 1.2, r * 0.06, r * 0.06], rot: [0, 0, 0.5] },
+                    { geo: A.box, mat: M.eye, pos: [r * 0.25, r * 1.15, r * 0.6], scale: [r * 1.2, r * 0.06, r * 0.06], rot: [0, 0, -0.5] },
                 ]).children);
-                legs = this.makeLegs(4, M.legs, r * 1.1, r * 0.85);
-                eyeY = r * 1.5;
+                legs = this.makeLegs(4, M.legs, r * 1.2, r * 0.9);
+                eyeY = r * 1.6;
             } else {
                 // STALKER (4 kaki) / INTERCEPTOR (6 kaki, lebih ramping)
                 const slim = ent.type === 'INTERCEPTOR' ? 0.75 : 1.0;
@@ -6430,6 +6766,17 @@
             eye.position.set(r * 0.85, eyeY, 0);
             eye.name = 'eye';
             body.add(eye);
+
+            // BOSS_TANK: dua mata pendamping lebih kecil — kesan gerombolan
+            // sensor predator, bukan satu "wajah" tunggal yang jinak.
+            if (ent.type === 'BOSS_TANK') {
+                for (const side of [-1, 1]) {
+                    const sideEye = new THREE.Mesh(A.sphere, M.eye);
+                    sideEye.scale.setScalar(r * 0.12);
+                    sideEye.position.set(r * 0.75, eyeY - r * 0.18, side * r * 0.3);
+                    body.add(sideEye);
+                }
+            }
 
             // Tanpa PointLight: mata sudah berupa material emissive dan
             // ikut terangkat oleh bloom, jadi tetap menyala terang termasuk
@@ -6512,22 +6859,53 @@
             const CM = this.enemyMats('COLOSSUS', 0x7c2d12, 0xea580c);
             const bodyMat = CM.body;
             const root = new THREE.Group();
+            // Musuh terbesar & paling berbahaya — mahkota duri, taring
+            // raksasa, dan retakan energi supaya siluetnya jauh lebih
+            // mengintimidasi daripada sekadar kotak logam bulat.
             const body = mergeGroup([
-                { geo: A.rbox, mat: bodyMat, pos: [0, r * 1.3, 0], scale: [r * 2.0, r * 1.5, r * 1.8] },
-                { geo: A.box, mat: A.matSteel, pos: [0, r * 0.5, -r * 1.15], scale: [r * 2.3, r * 1.0, r * 0.6] },
-                { geo: A.box, mat: A.matSteel, pos: [0, r * 0.5, r * 1.15], scale: [r * 2.3, r * 1.0, r * 0.6] },
-                { geo: A.box, mat: bodyMat, pos: [r * 1.2, r * 1.6, 0], scale: [r * 1.3, r * 0.5, r * 0.5] },
+                { geo: A.rbox, mat: bodyMat, pos: [0, r * 1.3, 0], scale: [r * 2.1, r * 1.6, r * 1.9] },
+                { geo: A.box, mat: A.matSteel, pos: [0, r * 0.5, -r * 1.2], scale: [r * 2.4, r * 1.05, r * 0.6] },
+                { geo: A.box, mat: A.matSteel, pos: [0, r * 0.5, r * 1.2], scale: [r * 2.4, r * 1.05, r * 0.6] },
+                // Moncong/ram depan besar
+                { geo: A.box, mat: A.matSteel, pos: [r * 1.3, r * 1.15, 0], scale: [r * 1.0, r * 0.75, r * 1.25] },
+                { geo: A.box, mat: bodyMat, pos: [r * 1.6, r * 1.35, 0], scale: [r * 0.65, r * 0.4, r * 0.7] },
+                // Taring depan — baris duri besar
+                { geo: A.cone, mat: A.matSteel, pos: [r * 1.85, r * 0.7, -r * 0.7], scale: [r * 0.14, r * 0.55, r * 0.14], rot: [0, 0, -Math.PI / 2 + 0.35] },
+                { geo: A.cone, mat: A.matSteel, pos: [r * 1.92, r * 0.68, -r * 0.32], scale: [r * 0.15, r * 0.6, r * 0.15], rot: [0, 0, -Math.PI / 2 + 0.15] },
+                { geo: A.cone, mat: A.matSteel, pos: [r * 1.97, r * 0.68, r * 0.05], scale: [r * 0.16, r * 0.62, r * 0.16], rot: [0, 0, -Math.PI / 2] },
+                { geo: A.cone, mat: A.matSteel, pos: [r * 1.92, r * 0.68, r * 0.42], scale: [r * 0.15, r * 0.6, r * 0.15], rot: [0, 0, -Math.PI / 2 - 0.15] },
+                { geo: A.cone, mat: A.matSteel, pos: [r * 1.85, r * 0.7, r * 0.75], scale: [r * 0.14, r * 0.55, r * 0.14], rot: [0, 0, -Math.PI / 2 - 0.35] },
+                // Mahkota duri punggung/bahu (6, lebih besar dari BOSS_TANK)
+                { geo: A.cone, mat: A.matSteel, pos: [-r * 0.6, r * 2.2, -r * 0.85], scale: [r * 0.26, r * 0.95, r * 0.26], rot: [0.35, 0, 0.4] },
+                { geo: A.cone, mat: A.matSteel, pos: [-r * 0.6, r * 2.2, r * 0.85], scale: [r * 0.26, r * 0.95, r * 0.26], rot: [-0.35, 0, 0.4] },
+                { geo: A.cone, mat: A.matSteel, pos: [0, r * 2.4, -r * 0.55], scale: [r * 0.22, r * 1.05, r * 0.22], rot: [0.2, 0, 0.2] },
+                { geo: A.cone, mat: A.matSteel, pos: [0, r * 2.4, r * 0.55], scale: [r * 0.22, r * 1.05, r * 0.22], rot: [-0.2, 0, 0.2] },
+                { geo: A.cone, mat: A.matSteel, pos: [r * 0.55, r * 2.25, -r * 0.3], scale: [r * 0.2, r * 0.9, r * 0.2], rot: [0.12, 0, 0.05] },
+                { geo: A.cone, mat: A.matSteel, pos: [r * 0.55, r * 2.25, r * 0.3], scale: [r * 0.2, r * 0.9, r * 0.2], rot: [-0.12, 0, 0.05] },
+                // Retakan energi besar di dada/punggung
+                { geo: A.box, mat: CM.eye, pos: [r * 0.3, r * 1.5, -r * 0.7], scale: [r * 1.4, r * 0.08, r * 0.08], rot: [0, 0, 0.5] },
+                { geo: A.box, mat: CM.eye, pos: [r * 0.3, r * 1.5, r * 0.7], scale: [r * 1.4, r * 0.08, r * 0.08], rot: [0, 0, -0.5] },
+                { geo: A.box, mat: CM.eye, pos: [-r * 0.2, r * 1.2, 0], scale: [r * 0.9, r * 0.07, r * 0.07], rot: [0, Math.PI / 2, 0.15] },
             ]);
             const core = new THREE.Mesh(A.sphere, CM.eye);
             core.scale.setScalar(r * 0.3);
             core.position.set(r * 0.4, r * 1.9, 0);
             core.name = 'core';
             body.add(core);
+
+            // Dua mata satelit kecil mengapit core — kesan makhluk predator
+            // raksasa, bukan sekadar mesin polos.
+            for (const side of [-1, 1]) {
+                const satEye = new THREE.Mesh(A.sphere, CM.eye);
+                satEye.scale.setScalar(r * 0.13);
+                satEye.position.set(r * 0.75, r * 1.75, side * r * 0.4);
+                body.add(satEye);
+            }
             // Tanpa PointLight (lihat catatan pool lampu di R3.init):
             // inti Colossus sudah material emissive dan diperkuat bloom.
             root.add(body);
             const bar = healthBar(r * 2.4, r * 0.2, false);
-            bar.position.y = r * 3.0;
+            bar.position.y = r * 3.6;
             root.add(bar);
             root.userData = { body, core, bar, t: 0 };
             return root;
@@ -6839,8 +7217,10 @@
                     _bd.rotation.set(0, -b.angle, 0);
                     // Tracer memanjang: lebih terbaca saat bergerak cepat, tapi
                     // tetap ramping supaya tidak jadi lonjong tebal di layar.
-                    const len = b.isShock ? 1.8 : 5.0;
-                    const th = b.radius * (b.isShock ? 1.4 : 0.75);
+                    // Arc Emitter (isShock) sengaja PALING panjang & tebal —
+                    // kesan gelombang laser besar, bukan gelembung pendek.
+                    const len = b.isShock ? 9.0 : 5.0;
+                    const th = b.radius * (b.isShock ? 1.6 : 0.75);
                     _bd.scale.set(len, th, th);
                     _bc.set(b.color || '#ffffff');
                     im.instanceColor.setXYZ(i, _bc.r, _bc.g, _bc.b);
@@ -6996,6 +7376,18 @@
             // satu kali set untuk semuanya.
             if (this.assets.matBulb) {
                 this.assets.matBulb.emissiveIntensity = isPowerOut ? 0.05 : 2.5;
+            }
+
+            // BOSS_TANK & COLOSSUS: mata & retakan berdenyut seperti detak
+            // jantung — materialnya dibagi semua instance setipe, jadi cukup
+            // satu kali set di sini (bukan per entity).
+            const tankMats = this._emats && this._emats.BOSS_TANK;
+            if (tankMats) {
+                tankMats.eye.emissiveIntensity = 2.6 + Math.sin(Date.now() * 0.006) * 1.4;
+            }
+            const colMats = this._emats && this._emats.COLOSSUS;
+            if (colMats) {
+                colMats.eye.emissiveIntensity = 2.8 + Math.sin(Date.now() * 0.0045) * 1.6;
             }
 
             // Penerangan nyata hanya dari 4 lampu TERDEKAT, memakai pool tetap.
@@ -7626,7 +8018,6 @@
                 walls.push({ x: 0, y: EXPANDED_MAP_SIZE - 50, w: EXPANDED_MAP_SIZE, h: 50, type: 'fence' });
                 walls.push({ x: 0, y: 0, w: 50, h: EXPANDED_MAP_SIZE, type: 'fence' });
                 walls.push({ x: EXPANDED_MAP_SIZE - 50, y: 0, w: 50, h: EXPANDED_MAP_SIZE, type: 'fence' });
-                if (wave >= 6) generateSecretBases(2);
 
                 // Bangunan Baru di Area Luar (Military Outpost)
                 const outX = 3500, outY = 1500;
@@ -7664,9 +8055,24 @@
                 lamps.push(new Lamp(4000, 2500, 300));
                 lamps.push(new Lamp(1000, 4000, 300));
 
+                // Jalan + trotoar + marka + lampu jalan untuk area luar yang baru
+                // terbuka (dari INITIAL_MAP_SIZE ke EXPANDED_MAP_SIZE) — grid ini
+                // menyambung dari grid awal, hanya menambah garis baru, tidak
+                // menggambar ulang jalan lama.
+                generateRoadNetwork(EXPANDED_MAP_SIZE, INITIAL_MAP_SIZE + 200, EXPANDED_MAP_SIZE - 200);
+
+                // Gedung tambahan yang mengisi distrik luar. Sebagian akan
+                // diundi jadi sarang musuh oleh assignEnemyNests() saat wave 6.
+                placeCityBuildings(0, 0, EXPANDED_MAP_SIZE, EXPANDED_MAP_SIZE, 14, 'city_b');
+
                 cacheStaticMap(); // Refresh cache for new map size
             }
 
+            // Dicek tiap frame (bukan cuma pas wave transition) supaya markas
+            // musuh pasti muncul begitu wave>=6 dan gedung kota sudah ada —
+            // assignEnemyNests() sendiri no-op kalau sudah pernah ditentukan
+            // atau gedung kota belum tersedia, jadi ini murah dipanggil terus.
+            if (wave >= 6) assignEnemyNests(2);
 
             if (survivors.length === 0) {
                 survivors.push(new Survivor(INITIAL_MAP_SIZE + 200, 1500));
@@ -7705,9 +8111,9 @@
                 triggerWaveAlert(); // Notify player of wave coordination
 
                 if (Math.random() < 0.5) spawnLore(); // Chance to spawn lore
-
-                // Spawn / Reset markas musuh (Hanya wave 6 ke atas)
-                generateSecretBases(2);
+                // (Markas musuh ditentukan di pengecekan per-frame di bawah,
+                // bukan di sini, supaya tidak bergantung pada momen transisi
+                // wave — lihat assignEnemyNests().)
             }
 
             drawMinimap();
@@ -7729,8 +8135,9 @@
                             bulletDestroyed = true;
                             for (let k = 0; k < 3; k++) getParticleFromPool(b.x, b.y, '#94a3b8');
 
-                            // Tembok bisa hancur (kecuali pagar luar dan gerbang markas)
-                            if (w.type !== 'fence' && w.id !== 'mainGate') {
+                            // Tembok bisa hancur (kecuali pagar luar, gerbang markas,
+                            // dan gun store — itu safe zone, harus tetap aman)
+                            if (w.type !== 'fence' && w.id !== 'mainGate' && w.id !== 'store' && w.id !== 'storeDoor') {
                                 if (w.hp === undefined) { w.maxHp = 1000; w.hp = 1000; }
                                 w.hp -= b.damage;
 
