@@ -5949,10 +5949,19 @@
             this.flashlight = new THREE.SpotLight(
                 0xfff3c4, 0, 900, Math.PI / 5.5, 0.45, 1.2);
             this.flashlight.castShadow = false;
-            this.flashlight.shadow.mapSize.set(512, 512);
-            this.flashlight.shadow.bias = -0.003;
-            this.flashlight.shadow.camera.near = 10;
-            this.flashlight.shadow.camera.far = 650;
+            // near=10 sebelumnya terlalu dekat relatif far=650 (rasio 65:1),
+            // shadow map perspektif jadi kehilangan presisi di jarak menengah
+            // — itu sumber kedap-kedip/shadow acne saat senter bergerak tiap
+            // frame. near dinaikkan (tidak ada apa pun sedekat itu ke senter),
+            // far dipangkas (di luar itu intensitas sudah nyaris nol via LUX
+            // falloff), dan normalBias ditambah (lebih stabil dari bias biasa
+            // untuk cahaya yang terus bergerak/berputar).
+            this.flashlight.shadow.mapSize.set(1024, 1024);
+            this.flashlight.shadow.bias = -0.0008;
+            this.flashlight.shadow.normalBias = 4;
+            this.flashlight.shadow.radius = 2;
+            this.flashlight.shadow.camera.near = 40;
+            this.flashlight.shadow.camera.far = 550;
             this.scene.add(this.flashlight, this.flashlight.target);
 
             // Lampu interior. Versi 2D menggelapkan SEGALANYA KECUALI bagian
@@ -6838,7 +6847,12 @@
             else u.body.rotation.z = 0;
 
             setHealthBar(u.bar, ent.hp / ent.maxHp);
-            u.bar.position.y = (flying ? 60 : 0) + u.eyeY + ent.radius * 1.2;
+            // BUG lama: menambah (flying?60:0) DI SINI double-counting tinggi
+            // terbang, karena root sudah diangkat ke y=h oleh syncMesh(obj,ent,h)
+            // di atas — health bar DRONE jadi melayang dobel-tinggi dari
+            // badannya. bar adalah child root, jadi cukup offset lokal
+            // eyeY + radius saja, tanpa menambah tinggi terbang lagi.
+            u.bar.position.y = u.eyeY + ent.radius * 1.2;
 
             // Visual AI: hacked / converted. Materialnya DITUKAR, bukan dimutasi —
             // material dibagi antar musuh setipe, jadi mutasi akan mengubah semuanya.
@@ -6947,9 +6961,14 @@
                 // Pose tumbang, sama maknanya dengan indikator rusak di versi 2D
                 u.body.rotation.z = Math.PI / 2.3;
                 u.body.position.y = -14;
+                // bar adalah child root (bukan body), jadi tidak ikut rebah
+                // otomatis — tanpa ini bar tetap melayang di tinggi berdiri
+                // padahal badannya sudah rebah, kelihatan salah tempat.
+                u.bar.position.y = 22;
             } else {
                 u.body.rotation.z = 0;
                 u.body.position.y = Math.abs(Math.sin(u.t * 0.012)) * 3;
+                u.bar.position.y = 66;
             }
             setHealthBar(u.bar, ent.hp / ent.maxHp);
         };
